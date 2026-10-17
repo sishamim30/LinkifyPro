@@ -1,1 +1,18 @@
-
+{
+  "name": "linkifypro-api",
+  "version": "1.0.0",
+  "description": "Backend API for LinkifyPro Telegram Mini App",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "LinkifyPro",
+  "license": "MIT"
+}
