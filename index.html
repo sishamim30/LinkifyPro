@@ -150,8 +150,18 @@
                 </div>
 
                 <h3 class="text-sm font-bold text-white mb-3 px-2 flex items-center"><i class="fa-solid fa-list-check mr-2 text-indigo-400"></i> Referrals List</h3>
-                <div id="referrals-list" class="space-y-3">
+                <div id="referrals-list" class="space-y-3 mb-6">
                     <div class="text-center text-slate-500 py-6 text-sm glass-panel">Loading details...</div>
+                </div>
+
+                <!-- DIRECT LINK BONUS BOX -->
+                <div class="glass-panel p-5 text-center border border-indigo-500/30 bg-indigo-900/10 relative overflow-hidden shadow-lg mt-4">
+                    <div class="absolute -right-4 -top-4 text-indigo-500/20 text-6xl"><i class="fa-solid fa-bolt"></i></div>
+                    <h3 class="text-lg font-bold text-white mb-2 relative z-10">Bonus Task</h3>
+                    <p class="text-xs text-slate-300 mb-4 relative z-10">Support us by visiting our sponsor direct link!</p>
+                    <button onclick="openDirectLink()" class="w-full primary-gradient hover:opacity-90 text-white font-bold py-3 rounded-xl shadow-lg relative z-10 transition-transform active:scale-95">
+                        <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Visit Direct Link
+                    </button>
                 </div>
             </div>
 
@@ -272,13 +282,16 @@
     </div>
 
     <script>
-        // --- API CONFIGURATION ---
+        // --- API CONFIGURATION & DIRECT LINKS ---
         const SUPABASE_URL = 'https://vmikbelinumdgynvoumw.supabase.co'; 
         const SUPABASE_ANON_KEY = 'sb_publishable_VjvBO3Rpxj4mYYX95cjPRA_Z3SoJ-VB';
         const VERCEL_API_URL = 'https://linkifypro-e62immqn0-linkify-pro.vercel.app/api'; 
         
         const BOT_USERNAME = 'linkifypro_bot'; 
         const APP_SHORT_NAME = 'linkifypro'; 
+
+        // APKA DIRECT AD LINK YAHAN EXACTLY SET HAI
+        const DIRECT_AD_LINK = 'https://t.me/linkifypro_bot/httpslinkifyprovercelapp';
 
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUserData = null;
@@ -307,6 +320,16 @@
             if(pageId === 'page-home') generateDateReport();
             if(pageId === 'page-refer') fetchReferralDetails();
             if(pageId === 'page-wallet') loadWithdrawalHistory();
+        }
+
+        window.openDirectLink = function() {
+            try {
+                if(DIRECT_AD_LINK.includes('t.me')) {
+                    tg.openTelegramLink(DIRECT_AD_LINK);
+                } else {
+                    window.open(DIRECT_AD_LINK, '_blank');
+                }
+            } catch(e) { window.open(DIRECT_AD_LINK, '_blank'); }
         }
 
         async function initApp() {
@@ -574,7 +597,7 @@
             } catch(e) {}
         }
 
-        // AD FLOW LOGIC
+        // AD FLOW LOGIC (WITH DIRECT LINK INJECTION)
         function startAdFlow() {
             document.getElementById('ui-loading').classList.add('hidden'); document.getElementById('ui-ad-viewer').classList.remove('hidden'); setupAdStep();
         }
@@ -594,21 +617,30 @@
         }
 
         function checkAdBlocker(btn, timerEl) {
-            if (typeof show_12057132 === 'undefined') {
-                document.getElementById('ad-blocker-warning').classList.remove('hidden');
-                document.getElementById('ad-step-title').innerText = "Action Required";
-                btn.classList.add('hidden'); timerEl.innerHTML = '<i class="fa-solid fa-ban text-red-500 text-xl"></i>';
-            } else {
-                timerEl.innerHTML = '<i class="fa-solid fa-play text-indigo-500"></i>';
-                btn.disabled = false; btn.className = "w-full primary-gradient text-white font-bold py-4 rounded-xl flex justify-center items-center shadow-lg shadow-indigo-500/30";
-                btn.innerHTML = "Click to Watch Ad"; btn.onclick = executeAdClick;
-            }
+            // Humne yahan error hataya, kyunki user ka direct link ALWAYS khulega chahe Monetag block ho jaye
+            timerEl.innerHTML = '<i class="fa-solid fa-play text-indigo-500"></i>';
+            btn.disabled = false; 
+            btn.className = "w-full primary-gradient text-white font-bold py-4 rounded-xl flex justify-center items-center shadow-lg shadow-indigo-500/30";
+            btn.innerHTML = "Click to Watch Ad"; 
+            btn.onclick = executeAdClick;
         }
 
         function executeAdClick() {
-            const btn = document.getElementById('btn-watch-ad'); btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Ad...`;
-            document.getElementById('ad-loader-ring').classList.remove('hidden'); document.getElementById('ad-timer-text').classList.add('hidden');
-            if (typeof show_12057132 === 'function') { show_12057132().then(() => { handleAdSuccess(); }).catch(() => { handleAdSuccess(); }); }
+            const btn = document.getElementById('btn-watch-ad'); 
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Ad...`;
+            document.getElementById('ad-loader-ring').classList.remove('hidden'); 
+            document.getElementById('ad-timer-text').classList.add('hidden');
+            
+            // 1. OPEN EXACT DIRECT LINK!
+            openDirectLink();
+
+            // 2. RUN MONETAG IN BACKGROUND (Agar active hua toh)
+            if (typeof show_12057132 === 'function') { 
+                show_12057132().then(() => { handleAdSuccess(); }).catch(() => { handleAdSuccess(); }); 
+            } else {
+                // Agar Monetag script missing/blocked hai, fir bhi success milega kyunki Direct Link khul chuka hai!
+                setTimeout(() => { handleAdSuccess(); }, 2500);
+            }
         }
 
         function handleAdSuccess() {
