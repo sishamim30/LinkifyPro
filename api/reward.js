@@ -7,16 +7,14 @@ module.exports = async function handler(req, res) {
 
     const { short_id } = req.body;
 
-    // Hardcoded fallback to your exact live Supabase URL to prevent connection errors
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://vmikbelinumdgynvoumw.supabase.co';
-    // Highly secure Service Role Key MUST come from Vercel ENV
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-         return res.status(500).json({ error: 'Vercel ENV variables missing (Check SUPABASE_SERVICE_KEY)' });
+         return res.status(500).json({ error: 'Vercel ENV variables missing' });
     }
 
-    // URL Cleanup (safeguard)
+    // URL Cleanup (Safeguard in case the URL contains /rest/v1/)
     const cleanUrl = supabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
     try {
