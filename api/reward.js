@@ -1,22 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
-    // 1. CORS Headers - এটি Vercel-এর ব্লক সমস্যা সমাধান করবে
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-    if (req.method === 'OPTIONS') {
-        return res.status(200).end();
-    }
-
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // ফ্রন্টএন্ড থেকে short_id এবং clicker_tg_id রিসিভ করা হচ্ছে
-    const { short_id, clicker_tg_id } = req.body;
+    const { short_id } = req.body;
 
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
@@ -25,7 +14,7 @@ module.exports = async function handler(req, res) {
          return res.status(500).json({ error: 'Vercel ENV variables missing' });
     }
 
-    // URL Cleanup (safeguard)
+    // URL Cleanup (Safeguard in case the URL contains /rest/v1/)
     const cleanUrl = supabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
     try {
@@ -36,24 +25,17 @@ module.exports = async function handler(req, res) {
         if (linkErr || !linkData) return res.status(404).json({ error: 'Link not found' });
 
         // 2. Fetch Admin Settings (For LIVE CPM)
-        const { data: adminSettings } = await supabase.from('settings').select('*').limit(1).maybeSingle();
-        const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 2.0;
+        const { data: adminSettings } = await supabase.from('settings').select('*').limit(1).single();
+        const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 200;
         const earn_amount = cpm / 1000;
 
-        // 3. INSERT INTO click_logs (এটি Daily Report এবং Views-এর জন্য অত্যন্ত জরুরি!)
-        await supabase.from('click_logs').insert([{
-            link_id: linkData.id,
-            clicker_tg_id: clicker_tg_id || null,
-            ip_address: req.headers['x-forwarded-for'] || 'unknown'
-        }]);
-
-        // 4. Update LINK table
+        // 3. Update LINK table
         await supabase.from('links').update({
             clicks: (linkData.clicks || 0) + 1,
             earnings: (linkData.earnings || 0) + earn_amount
         }).eq('id', linkData.id);
 
-        // 5. Fetch and Update USER table (This fixes Home Page Views & Earnings!)
+        // 4. Fetch and Update USER table (This fixes Home Page Views!)
         const { data: userData } = await supabase.from('users').select('*').eq('id', linkData.user_id).single();
         
         if (userData) {
@@ -61,16 +43,16 @@ module.exports = async function handler(req, res) {
                 balance: (userData.balance || 0) + earn_amount,
                 today_earnings: (userData.today_earnings || 0) + earn_amount,
                 total_earnings: (userData.total_earnings || 0) + earn_amount,
-                total_clicks: (userData.total_clicks || 0) + 1,
+                total_clicks: (userData.total_clicks || 0) + 1,     // HOME PAGE VIEW FIX
                 today_clicks: (userData.today_clicks || 0) + 1
             }).eq('id', userData.id);
 
-            // 6. Referral Commission Logic
+            // 5. Referral Commission Logic (Perfectly Integrated)
             const referPercent = adminSettings && adminSettings.refer_percent ? adminSettings.refer_percent : 10;
             if (referPercent > 0) {
-                const { data: referralData } = await supabase.from('referrals').select('referrer_tg_id').eq('referred_tg_id', userData.telegram_id).maybeSingle();
+                const { data: referralData } = await supabase.from('referrals').select('referrer_tg_id').eq('referred_tg_id', userData.telegram_id).single();
                 if (referralData && referralData.referrer_tg_id) {
-                    const { data: referrerData } = await supabase.from('users').select('*').eq('telegram_id', referralData.referrer_tg_id).maybeSingle();
+                    const { data: referrerData } = await supabase.from('users').select('*').eq('telegram_id', referralData.referrer_tg_id).single();
                     if (referrerData) {
                         const referComm = earn_amount * (referPercent / 100);
                         await supabase.from('users').update({
@@ -82,7 +64,7 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        return res.status(200).json({ success: true, message: 'Reward, Views & Click Logs added perfectly' });
+        return res.status(200).json({ success: true, message: 'Reward & Views added perfectly' });
 
     } catch (error) {
         return res.status(500).json({ error: error.message });
