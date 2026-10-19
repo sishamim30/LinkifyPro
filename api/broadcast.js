@@ -4,6 +4,8 @@ export default async function handler(req, res) {
     }
 
     const { chat_ids, image_url, caption, use_button, mini_app_url } = req.body;
+    
+    // Grabs the Bot Token securely from Vercel Environment Variables
     const BOT_TOKEN = process.env.BOT_TOKEN; 
 
     if (!BOT_TOKEN) {
@@ -19,10 +21,10 @@ export default async function handler(req, res) {
 
     // --- SMART BUTTON LOGIC ---
     let buttonConfig = {};
-    // Updated default URL to your live LinkifyPro Vercel link
-    const finalUrl = mini_app_url || "https://linkifypro-e62immqn0-linkify-pro.vercel.app/";
+    // UPDATED FALLBACK URL TO YOUR ACTUAL APP
+    const finalUrl = mini_app_url || "https://linkifypro.vercel.app/";
     
-    // Agar t.me link hai toh normal 'url' button banayega, warna 'web_app' button banayega
+    // If it's a t.me link, it makes a normal URL button. Otherwise, it uses web_app button.
     if (finalUrl.includes('t.me')) {
         buttonConfig = { url: finalUrl };
     } else {
@@ -68,7 +70,7 @@ export default async function handler(req, res) {
                 console.error(`Error for ${chat_id}:`, data.description);
             }
 
-            // Rate limit bachane ke liye delay (35ms keeps it safely under Telegram's 30 msg/sec limit)
+            // Small delay to prevent hitting Telegram's API rate limits
             await new Promise(resolve => setTimeout(resolve, 35));
 
         } catch (error) {
