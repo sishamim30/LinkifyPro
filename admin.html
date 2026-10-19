@@ -207,7 +207,8 @@
                         <span class="text-sm font-bold text-white">Include "👉 Open now 👈" Button</span>
                     </label>
                     <label class="block text-xs font-bold text-slate-400 mb-2 uppercase">Existing Mini App Web URL</label>
-                    <input type="url" id="bc-mini-app-url" value="https://linkifypro-e62immqn0-linkify-pro.vercel.app/" class="w-full bg-slate-800 border border-slate-700 rounded p-3 text-white text-sm focus:border-indigo-500 outline-none">
+                    <!-- UPDATED VERCEL LIVE URL -->
+                    <input type="url" id="bc-mini-app-url" value="https://linkifypro.vercel.app/" class="w-full bg-slate-800 border border-slate-700 rounded p-3 text-white text-sm focus:border-indigo-500 outline-none">
                 </div>
                 <button id="btn-send-broadcast" onclick="startBroadcast()" class="w-full bg-amber-600 hover:bg-amber-500 px-6 py-4 rounded-lg font-bold text-white shadow-lg transition-colors flex items-center justify-center">
                     <i class="fa-solid fa-paper-plane mr-2"></i> Send to All Users
@@ -239,7 +240,7 @@
         // --- API CONFIGURATION ---
         const SUPABASE_URL = 'https://vmikbelinumdgynvoumw.supabase.co'; 
         const SUPABASE_ANON_KEY = 'sb_publishable_VjvBO3Rpxj4mYYX95cjPRA_Z3SoJ-VB';
-        const VERCEL_BROADCAST_API = 'https://linkifypro-e62immqn0-linkify-pro.vercel.app/api/broadcast'; 
+        const VERCEL_BROADCAST_API = 'https://linkifypro.vercel.app/api/broadcast'; 
         const ADMIN_PASSWORD = "S-m$f-r+(si}_18-@K#t"; 
         
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
