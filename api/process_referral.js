@@ -2,9 +2,11 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     const { referrer_id, new_user } = req.body;
+    
+    // Grabs the Bot Token securely from Vercel Environment Variables
     const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN missing' });
+    if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN missing on Vercel' });
 
     try {
         const messageText = `🎉 <b>New Referral Joined!</b>\n\n👤 <b>${new_user.first_name || 'User'}</b> successfully registered using your link.\n\nYou will earn lifetime commission from their earnings!`;
@@ -17,8 +19,11 @@ export default async function handler(req, res) {
                 text: messageText,
                 parse_mode: 'HTML',
                 reply_markup: {
-                    // Updated to your actual LinkifyPro bot URL
-                    inline_keyboard: [[{ text: "👥 View Referrals", url: "https://t.me/linkifypro_bot/linkifypro" }]]
+                    inline_keyboard: [[{ 
+                        text: "👥 View Referrals", 
+                        // UPDATED TO YOUR ACTUAL BOT & MINI APP URL
+                        url: "https://t.me/linkifypro_bot/linkifypro" 
+                    }]]
                 }
             })
         });
