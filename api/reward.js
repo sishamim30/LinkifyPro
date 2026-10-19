@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
-    // --- CORS Headers (Vercel Block ফিক্স করার জন্য) ---
+    // 1. CORS Headers - এটি Vercel-এর ব্লক সমস্যা সমাধান করবে
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -15,6 +15,7 @@ module.exports = async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // ফ্রন্টএন্ড থেকে short_id এবং clicker_tg_id রিসিভ করা হচ্ছে
     const { short_id, clicker_tg_id } = req.body;
 
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -24,7 +25,7 @@ module.exports = async function handler(req, res) {
          return res.status(500).json({ error: 'Vercel ENV variables missing' });
     }
 
-    // URL Cleanup
+    // URL Cleanup (safeguard)
     const cleanUrl = supabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
     try {
@@ -34,38 +35,25 @@ module.exports = async function handler(req, res) {
         const { data: linkData, error: linkErr } = await supabase.from('links').select('*').eq('short_id', short_id).single();
         if (linkErr || !linkData) return res.status(404).json({ error: 'Link not found' });
 
-        // 2. Prevent Duplicate Clicks (একজন ইউজার একবারই ক্লিক করতে পারবে)
-        if (clicker_tg_id && clicker_tg_id !== 0) {
-            const { data: existingLog } = await supabase.from('click_logs')
-                .select('id')
-                .eq('link_id', linkData.id)
-                .eq('clicker_tg_id', clicker_tg_id)
-                .maybeSingle();
-            
-            if (existingLog) {
-                return res.status(200).json({ success: false, message: 'Already clicked by this user' });
-            }
-        }
-
-        // 3. Fetch Admin Settings
+        // 2. Fetch Admin Settings (For LIVE CPM)
         const { data: adminSettings } = await supabase.from('settings').select('*').limit(1).maybeSingle();
-        const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 2.0; // Default CPM $2
+        const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 2.0;
         const earn_amount = cpm / 1000;
 
-        // 4. Insert into click_logs (এটি Daily Report এবং Views ফিক্স করবে)
+        // 3. INSERT INTO click_logs (এটি Daily Report এবং Views-এর জন্য অত্যন্ত জরুরি!)
         await supabase.from('click_logs').insert([{
             link_id: linkData.id,
-            clicker_tg_id: clicker_tg_id || 0,
+            clicker_tg_id: clicker_tg_id || null,
             ip_address: req.headers['x-forwarded-for'] || 'unknown'
         }]);
 
-        // 5. Update LINK table
+        // 4. Update LINK table
         await supabase.from('links').update({
             clicks: (linkData.clicks || 0) + 1,
             earnings: (linkData.earnings || 0) + earn_amount
         }).eq('id', linkData.id);
 
-        // 6. Fetch and Update USER table (Home Page-এ Views এবং Earn Update করার জন্য)
+        // 5. Fetch and Update USER table (This fixes Home Page Views & Earnings!)
         const { data: userData } = await supabase.from('users').select('*').eq('id', linkData.user_id).single();
         
         if (userData) {
@@ -77,7 +65,7 @@ module.exports = async function handler(req, res) {
                 today_clicks: (userData.today_clicks || 0) + 1
             }).eq('id', userData.id);
 
-            // 7. Referral Commission Logic
+            // 6. Referral Commission Logic
             const referPercent = adminSettings && adminSettings.refer_percent ? adminSettings.refer_percent : 10;
             if (referPercent > 0) {
                 const { data: referralData } = await supabase.from('referrals').select('referrer_tg_id').eq('referred_tg_id', userData.telegram_id).maybeSingle();
@@ -94,10 +82,9 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        return res.status(200).json({ success: true, message: 'Reward, View & Logs added perfectly' });
+        return res.status(200).json({ success: true, message: 'Reward, Views & Click Logs added perfectly' });
 
     } catch (error) {
-        console.error("Reward Error:", error.message);
         return res.status(500).json({ error: error.message });
     }
 }
