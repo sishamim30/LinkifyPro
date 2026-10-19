@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- UPDATED MONETAG SCRIPT -->
+    <!-- MONETAG SCRIPT -->
     <script src='//libtl.com/sdk.js' data-zone='12057132' data-sdk='show_12057132'></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -279,7 +279,8 @@
         const VERCEL_API_URL = 'https://linkifypro.vercel.app/api'; 
         
         const BOT_USERNAME = 'linkifypro_bot'; 
-        const APP_SHORT_NAME = 'linkifypro'; 
+        // UPDATED EXACTLY TO MATCH YOUR REQUESTED SHORT NAME
+        const APP_SHORT_NAME = 'httpslinkifyprovercelapp'; 
 
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUserData = null;
