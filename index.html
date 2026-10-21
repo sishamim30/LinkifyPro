@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TeleShort - Mini App</title>
+    <title>LinkifyPro - Mini App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -36,7 +36,7 @@
     <!-- LOADING SCREEN -->
     <div id="ui-loading" class="fixed inset-0 flex flex-col items-center justify-center bg-[#0f172a] z-50">
         <i class="fa-solid fa-bolt text-5xl text-indigo-500 mb-4 animate-pulse"></i>
-        <h2 class="text-2xl font-bold text-white mb-2" id="loading-title">TeleShort</h2>
+        <h2 class="text-2xl font-bold text-white mb-2" id="loading-title">LinkifyPro</h2>
         <p class="text-slate-400 text-sm" id="loading-text">Connecting to servers...</p>
     </div>
 
@@ -50,13 +50,13 @@
         </div>
     </div>
 
-    <!-- WARNING POPUP -->
+    <!-- WELCOME POPUP -->
     <div id="warning-popup" class="fixed inset-0 z-[60] bg-[#0f172a]/90 backdrop-blur-sm flex items-center justify-center hidden fade-in">
-        <div class="glass-panel p-6 m-4 max-w-sm text-center border border-red-500/50 shadow-2xl shadow-red-500/20">
-            <div class="w-16 h-16 bg-red-500/20 rounded-full mx-auto flex items-center justify-center mb-4"><i class="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i></div>
-            <h2 class="text-xl font-bold text-white mb-2">Important Rules!</h2>
-            <p class="text-sm text-slate-300 mb-6"><span class="text-red-400 font-bold">1.</span> NO VPN Allowed.<br><span class="text-red-400 font-bold">2.</span> NO Self-Clicking.<br><br>Violations will result in an instant <span class="font-bold text-red-400">Account BAN</span> without payout.</p>
-            <button onclick="document.getElementById('warning-popup').classList.add('hidden')" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-all">I Agree</button>
+        <div class="glass-panel p-6 m-4 max-w-sm text-center border border-emerald-500/50 shadow-2xl shadow-emerald-500/20">
+            <div class="w-16 h-16 bg-emerald-500/20 rounded-full mx-auto flex items-center justify-center mb-4"><i class="fa-solid fa-gift text-3xl text-emerald-500"></i></div>
+            <h2 class="text-xl font-bold text-white mb-2">Welcome to LinkifyPro!</h2>
+            <p class="text-sm text-slate-300 mb-6">Shorten unlimited links and click them to earn cash. <br><br>Reach <span class="font-bold text-emerald-400">$5.00</span> to request a fast payout!</p>
+            <button onclick="document.getElementById('warning-popup').classList.add('hidden')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all">Start Earning</button>
         </div>
     </div>
 
@@ -66,7 +66,7 @@
         <header class="flex items-center justify-between p-4 glass-panel m-4 sticky top-4 z-30">
             <div class="flex items-center space-x-3">
                 <div class="w-11 h-11 rounded-full primary-gradient flex items-center justify-center shadow-lg"><i class="fa-solid fa-bolt text-white text-lg"></i></div>
-                <div><h1 class="font-bold text-lg text-white leading-tight">TeleShort</h1><p class="text-[11px] text-indigo-300" id="user-greeting">Loading...</p></div>
+                <div><h1 class="font-bold text-lg text-white leading-tight">LinkifyPro</h1><p class="text-[11px] text-indigo-300" id="user-greeting">Loading...</p></div>
             </div>
             <div class="flex items-center space-x-2 bg-slate-800/80 py-2 px-4 rounded-full border border-slate-700 shadow-inner">
                 <i class="fa-solid fa-wallet text-emerald-400"></i><span class="font-bold text-sm text-emerald-400" id="header-balance">$0.00</span>
@@ -175,7 +175,6 @@
                     <div class="mb-4">
                         <label class="block text-xs font-bold text-slate-400 mb-2">Select Payment Method</label>
                         <select id="withdraw-method" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500">
-                            <!-- Populated dynamically -->
                             <option value="">Loading methods...</option>
                         </select>
                     </div>
@@ -279,7 +278,6 @@
         const VERCEL_API_URL = 'https://linkifypro.vercel.app/api'; 
         
         const BOT_USERNAME = 'linkifypro_bot'; 
-        // UPDATED EXACTLY TO MATCH YOUR REQUESTED SHORT NAME
         const APP_SHORT_NAME = 'httpslinkifyprovercelapp'; 
 
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -291,7 +289,6 @@
         tg.setHeaderColor('#0f172a');
 
         let currentAdStep = 1; let totalAdsRequired = 1;
-        window.invalidClickReason = null; 
 
         function safeAlert(msg) { try { tg.showAlert(msg); } catch(e) { alert(msg); } }
         function copyText(text) {
@@ -367,22 +364,14 @@
 
         async function verifyLinkStatus() {
             try {
+                // We fetch just to ensure it exists. All Self-Click and Duplicate blocks removed!
                 const { data: linkData } = await dbClient.from('links').select('id, user_id').eq('short_id', window.currentShortId).single();
-                if(linkData && currentUserData) {
-                    if(linkData.user_id === currentUserData.id) { window.invalidClickReason = "self"; return; }
-                    if(currentUserData.telegram_id) {
-                        const { data: logs } = await dbClient.from('click_logs').select('id').eq('link_id', linkData.id).eq('clicker_tg_id', currentUserData.telegram_id);
-                        if(logs && logs.length > 0) window.invalidClickReason = "duplicate";
-                    }
-                }
             } catch(e) {}
         }
 
         function setupDashboard() {
-            // Popup
             document.getElementById('warning-popup').classList.remove('hidden');
             
-            // Header Info
             const u = tg.initDataUnsafe?.user;
             if(u) {
                 document.getElementById('user-greeting').innerText = `Hello, ${u.first_name}!`;
@@ -392,7 +381,6 @@
                 document.getElementById('referral-link-display').innerText = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=ref_${u.id}`;
             }
 
-            // Stats
             document.getElementById('header-balance').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(2)}`;
             document.getElementById('wallet-balance-page').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(2)}`;
             document.getElementById('stat-today-earn').innerText = `$${parseFloat(currentUserData.today_earnings || 0).toFixed(4)}`;
@@ -401,13 +389,11 @@
             document.getElementById('refer-commission').innerText = `${adminSettings.refer_percent || 10}%`;
             document.getElementById('min-withdraw-display').innerText = `$${parseFloat(adminSettings.min_withdraw || 5).toFixed(2)}`;
 
-            // Profile Links
             if(adminSettings.tg_channel_url) { document.getElementById('link-tg').href = adminSettings.tg_channel_url; document.getElementById('link-tg').classList.remove('hidden'); document.getElementById('link-tg').classList.add('flex'); }
             if(adminSettings.yt_channel_url) { document.getElementById('link-yt').href = adminSettings.yt_channel_url; document.getElementById('link-yt').classList.remove('hidden'); document.getElementById('link-yt').classList.add('flex'); if(adminSettings.tg_channel_url) document.getElementById('div-line-yt').classList.remove('hidden'); }
             if(adminSettings.privacy_url) { document.getElementById('link-privacy').href = adminSettings.privacy_url; document.getElementById('link-privacy').classList.remove('hidden'); document.getElementById('link-privacy').classList.add('flex'); }
             if(adminSettings.terms_url) { document.getElementById('link-terms').href = adminSettings.terms_url; document.getElementById('link-terms').classList.remove('hidden'); document.getElementById('link-terms').classList.add('flex'); }
 
-            // Withdraw Select Methods
             const methods = (adminSettings.payment_methods || "UPI").split(',');
             const sel = document.getElementById('withdraw-method');
             sel.innerHTML = '<option value="">Choose Method...</option>';
@@ -417,7 +403,6 @@
                 sel.appendChild(opt);
             });
 
-            // Listeners
             document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', function() { switchPage(this.getAttribute('data-target')); }));
             
             document.getElementById('btn-shorten').addEventListener('click', async function() {
@@ -442,7 +427,6 @@
             generateDateReport(); fetchReferralDetails();
         }
 
-        // --- WITHDRAWAL LOGIC ---
         window.submitWithdrawal = async function() {
             const method = document.getElementById('withdraw-method').value;
             const details = document.getElementById('withdraw-details').value.trim();
@@ -460,16 +444,14 @@
 
             try {
                 const newBal = bal - amount;
-                // 1. Deduct Balance
                 await dbClient.from('users').update({ balance: newBal }).eq('id', currentUserData.id);
-                // 2. Insert Request
                 await dbClient.from('withdrawals').insert([{
                     user_id: currentUserData.id,
                     username: tg.initDataUnsafe?.user?.username || tg.initDataUnsafe?.user?.first_name || 'User',
                     amount: amount, method: method, details: details, status: 'pending'
                 }]);
 
-                currentUserData.balance = newBal; // Update local
+                currentUserData.balance = newBal;
                 document.getElementById('header-balance').innerText = `$${newBal.toFixed(2)}`;
                 document.getElementById('wallet-balance-page').innerText = `$${newBal.toFixed(2)}`;
                 document.getElementById('withdraw-amount').value = '';
@@ -509,7 +491,6 @@
             } catch(e) {}
         }
 
-        // --- FETCH LINKS & REPORT ---
         async function loadLinks() {
             const list = document.getElementById('links-list');
             try {
@@ -576,7 +557,6 @@
             } catch(e) {}
         }
 
-        // AD FLOW LOGIC
         function startAdFlow() {
             document.getElementById('ui-loading').classList.add('hidden'); document.getElementById('ui-ad-viewer').classList.remove('hidden'); setupAdStep();
         }
@@ -596,7 +576,6 @@
         }
 
         function checkAdBlocker(btn, timerEl) {
-            // UPDATED MONETAG FUNCTION CALL
             if (typeof show_12057132 === 'undefined') {
                 document.getElementById('ad-blocker-warning').classList.remove('hidden');
                 document.getElementById('ad-step-title').innerText = "Action Required";
@@ -611,7 +590,6 @@
         function executeAdClick() {
             const btn = document.getElementById('btn-watch-ad'); btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Ad...`;
             document.getElementById('ad-loader-ring').classList.remove('hidden'); document.getElementById('ad-timer-text').classList.add('hidden');
-            // UPDATED MONETAG FUNCTION CALL
             if (typeof show_12057132 === 'function') { show_12057132().then(() => { handleAdSuccess(); }).catch(() => { handleAdSuccess(); }); }
         }
 
@@ -620,19 +598,39 @@
         }
 
         async function showFinalLink() {
-            document.getElementById('btn-watch-ad').classList.add('hidden'); document.getElementById('ad-timer-container').classList.add('hidden');
-            document.getElementById('ad-progress-badge').classList.add('hidden'); document.getElementById('ad-step-title').innerText = "Link Unlocked!";
+            document.getElementById('btn-watch-ad').classList.add('hidden'); 
+            document.getElementById('ad-timer-container').classList.add('hidden');
+            document.getElementById('ad-progress-badge').classList.add('hidden'); 
+            document.getElementById('ad-step-title').innerText = "Link Unlocked!";
             
-            const getLinkBtn = document.getElementById('btn-get-link'); getLinkBtn.classList.remove('hidden');
+            const getLinkBtn = document.getElementById('btn-get-link'); 
+            getLinkBtn.classList.remove('hidden');
             
-            if (window.invalidClickReason === "self") {
-                safeAlert("⚠️ This is your own link! Earnings will not be added.");
-            } else if (window.invalidClickReason === "duplicate") {
-                safeAlert("⚠️ You already viewed this link! Earnings won't be duplicated.");
-            } else {
-                let clickerId = tg.initDataUnsafe?.user?.id || 0;
-                try { fetch(`${VERCEL_API_URL}/reward`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ short_id: window.currentShortId, clicker_tg_id: clickerId }) }); } catch(e){}
+            let clickerId = tg.initDataUnsafe?.user?.id || 0;
+            
+            try { 
+                getLinkBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing Reward...';
+                getLinkBtn.disabled = true;
+
+                const res = await fetch(`${VERCEL_API_URL}/reward`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ short_id: window.currentShortId, clicker_tg_id: clickerId }) 
+                });
+                
+                const responseData = await res.json();
+                
+                if(responseData.success) {
+                    safeAlert("✅ Reward Added Successfully!");
+                } else {
+                    console.error("Reward Error:", responseData);
+                }
+            } catch(e) {
+                console.error("Reward Request Failed:", e);
             }
+            
+            getLinkBtn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> GET LINK';
+            getLinkBtn.disabled = false;
 
             const { data } = await dbClient.from('links').select('original_url').eq('short_id', window.currentShortId).single();
             if(data) getLinkBtn.onclick = () => tg.openLink(data.original_url);
