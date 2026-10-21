@@ -312,11 +312,10 @@
             try {
                 await loadAdminSettings();
 
-                // Check Maintenance Mode
                 if (adminSettings.maintenance_mode) {
                     document.getElementById('ui-loading').classList.add('hidden');
                     document.getElementById('ui-maintenance').classList.remove('hidden');
-                    return; // Stop app execution
+                    return; 
                 }
 
                 let startParam = tg.initDataUnsafe?.start_param || new URLSearchParams(window.location.search).get('link');
@@ -364,7 +363,7 @@
 
         async function verifyLinkStatus() {
             try {
-                // We fetch just to ensure it exists. All Self-Click and Duplicate blocks removed!
+                // Ensure link exists, self-click block removed.
                 const { data: linkData } = await dbClient.from('links').select('id, user_id').eq('short_id', window.currentShortId).single();
             } catch(e) {}
         }
@@ -622,11 +621,26 @@
                 
                 if(responseData.success) {
                     safeAlert("✅ Reward Added Successfully!");
+                    
+                    // Instant Visual Update in Home tab
+                    const cpm = adminSettings && adminSettings.cpm ? parseFloat(adminSettings.cpm) : 2.0;
+                    const earn_amount = cpm / 1000;
+                    
+                    if(currentUserData && currentUserData.id) {
+                        currentUserData.balance = (parseFloat(currentUserData.balance) || 0) + earn_amount;
+                        currentUserData.today_earnings = (parseFloat(currentUserData.today_earnings) || 0) + earn_amount;
+                        currentUserData.total_clicks = (parseInt(currentUserData.total_clicks) || 0) + 1;
+                        
+                        document.getElementById('header-balance').innerText = `$${currentUserData.balance.toFixed(4)}`;
+                        document.getElementById('wallet-balance-page').innerText = `$${currentUserData.balance.toFixed(4)}`;
+                        document.getElementById('stat-today-earn').innerText = `$${currentUserData.today_earnings.toFixed(4)}`;
+                        document.getElementById('stat-views').innerText = currentUserData.total_clicks;
+                    }
                 } else {
-                    console.error("Reward Error:", responseData);
+                    safeAlert("❌ Failed to add money: " + responseData.error);
                 }
             } catch(e) {
-                console.error("Reward Request Failed:", e);
+                safeAlert("❌ API Error: " + e.message);
             }
             
             getLinkBtn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> GET LINK';
