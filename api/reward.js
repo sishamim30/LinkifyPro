@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async function handler(req, res) {
-    // 1. CORS Headers - এটি Vercel-এর ব্লক সমস্যা সমাধান করবে
+    // 1. CORS Headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -15,7 +15,6 @@ module.exports = async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // ফ্রন্টএন্ড থেকে short_id এবং clicker_tg_id রিসিভ করা হচ্ছে
     const { short_id, clicker_tg_id } = req.body;
 
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -25,7 +24,6 @@ module.exports = async function handler(req, res) {
          return res.status(500).json({ error: 'Vercel ENV variables missing' });
     }
 
-    // URL Cleanup (safeguard)
     const cleanUrl = supabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
     try {
@@ -35,12 +33,14 @@ module.exports = async function handler(req, res) {
         const { data: linkData, error: linkErr } = await supabase.from('links').select('*').eq('short_id', short_id).single();
         if (linkErr || !linkData) return res.status(404).json({ error: 'Link not found' });
 
-        // 2. Fetch Admin Settings (For LIVE CPM)
+        // (এখানে আগে ডুপ্লিকেট ক্লিক ব্লক করার কোড ছিল, সেটা আপনার রিকুয়েস্ট অনুযায়ী ডিলিট করে দেওয়া হয়েছে)
+
+        // 2. Fetch Admin Settings
         const { data: adminSettings } = await supabase.from('settings').select('*').limit(1).maybeSingle();
         const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 2.0;
         const earn_amount = cpm / 1000;
 
-        // 3. INSERT INTO click_logs (এটি Daily Report এবং Views-এর জন্য অত্যন্ত জরুরি!)
+        // 3. INSERT INTO click_logs (যাতে বারবার রিপোর্ট জেনারেট হয়)
         await supabase.from('click_logs').insert([{
             link_id: linkData.id,
             clicker_tg_id: clicker_tg_id || null,
@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
             earnings: (linkData.earnings || 0) + earn_amount
         }).eq('id', linkData.id);
 
-        // 5. Fetch and Update USER table (This fixes Home Page Views & Earnings!)
+        // 5. Fetch and Update USER table (আনলিমিটেড ব্যালেন্স এড হবে)
         const { data: userData } = await supabase.from('users').select('*').eq('id', linkData.user_id).single();
         
         if (userData) {
@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        return res.status(200).json({ success: true, message: 'Reward, Views & Click Logs added perfectly' });
+        return res.status(200).json({ success: true, message: 'Reward added successfully!' });
 
     } catch (error) {
         return res.status(500).json({ error: error.message });
