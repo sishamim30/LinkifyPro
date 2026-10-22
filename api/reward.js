@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
          return res.status(500).json({ error: 'Vercel ENV variables missing' });
     }
 
-    // URL Cleanup
+    // URL Cleanup (safeguard)
     const cleanUrl = supabaseUrl.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
     try {
@@ -35,12 +35,12 @@ module.exports = async function handler(req, res) {
         const { data: linkData, error: linkErr } = await supabase.from('links').select('*').eq('short_id', short_id).single();
         if (linkErr || !linkData) return res.status(404).json({ error: 'Link not found' });
 
-        // 2. Fetch Admin Settings
+        // 2. Fetch Admin Settings (For LIVE CPM)
         const { data: adminSettings } = await supabase.from('settings').select('*').limit(1).maybeSingle();
-        const cpm = adminSettings && adminSettings.cpm ? parseFloat(adminSettings.cpm) : 2.0;
+        const cpm = adminSettings && adminSettings.cpm ? adminSettings.cpm : 2.0;
         const earn_amount = cpm / 1000;
 
-        // 3. INSERT INTO click_logs (Daily Report এবং Views-এর জন্য)
+        // 3. INSERT INTO click_logs (এটি Daily Report এবং Views-এর জন্য অত্যন্ত জরুরি!)
         await supabase.from('click_logs').insert([{
             link_id: linkData.id,
             clicker_tg_id: clicker_tg_id || null,
@@ -49,28 +49,24 @@ module.exports = async function handler(req, res) {
 
         // 4. Update LINK table
         await supabase.from('links').update({
-            clicks: (parseInt(linkData.clicks) || 0) + 1,
-            earnings: (parseFloat(linkData.earnings) || 0) + earn_amount
+            clicks: (linkData.clicks || 0) + 1,
+            earnings: (linkData.earnings || 0) + earn_amount
         }).eq('id', linkData.id);
 
         // 5. Fetch and Update USER table (This fixes Home Page Views & Earnings!)
         const { data: userData } = await supabase.from('users').select('*').eq('id', linkData.user_id).single();
         
         if (userData) {
-            const { error: userUpdateError } = await supabase.from('users').update({
-                balance: (parseFloat(userData.balance) || 0) + earn_amount,
-                today_earnings: (parseFloat(userData.today_earnings) || 0) + earn_amount,
-                total_earnings: (parseFloat(userData.total_earnings) || 0) + earn_amount,
-                total_clicks: (parseInt(userData.total_clicks) || 0) + 1,
-                today_clicks: (parseInt(userData.today_clicks) || 0) + 1
+            await supabase.from('users').update({
+                balance: (userData.balance || 0) + earn_amount,
+                today_earnings: (userData.today_earnings || 0) + earn_amount,
+                total_earnings: (userData.total_earnings || 0) + earn_amount,
+                total_clicks: (userData.total_clicks || 0) + 1,
+                today_clicks: (userData.today_clicks || 0) + 1
             }).eq('id', userData.id);
 
-            if (userUpdateError) {
-                return res.status(500).json({ error: 'Database Update Error: ' + userUpdateError.message });
-            }
-
             // 6. Referral Commission Logic
-            const referPercent = adminSettings && adminSettings.refer_percent ? parseFloat(adminSettings.refer_percent) : 10;
+            const referPercent = adminSettings && adminSettings.refer_percent ? adminSettings.refer_percent : 10;
             if (referPercent > 0) {
                 const { data: referralData } = await supabase.from('referrals').select('referrer_tg_id').eq('referred_tg_id', userData.telegram_id).maybeSingle();
                 if (referralData && referralData.referrer_tg_id) {
@@ -78,8 +74,8 @@ module.exports = async function handler(req, res) {
                     if (referrerData) {
                         const referComm = earn_amount * (referPercent / 100);
                         await supabase.from('users').update({
-                            balance: (parseFloat(referrerData.balance) || 0) + referComm,
-                            total_earnings: (parseFloat(referrerData.total_earnings) || 0) + referComm
+                            balance: (referrerData.balance || 0) + referComm,
+                            total_earnings: (referrerData.total_earnings || 0) + referComm
                         }).eq('id', referrerData.id);
                     }
                 }
