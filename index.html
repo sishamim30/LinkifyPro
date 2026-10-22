@@ -50,6 +50,16 @@
         </div>
     </div>
 
+    <!-- WARNING POPUP -->
+    <div id="warning-popup" class="fixed inset-0 z-[60] bg-[#0f172a]/90 backdrop-blur-sm flex items-center justify-center hidden fade-in">
+        <div class="glass-panel p-6 m-4 max-w-sm text-center border border-red-500/50 shadow-2xl shadow-red-500/20">
+            <div class="w-16 h-16 bg-red-500/20 rounded-full mx-auto flex items-center justify-center mb-4"><i class="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i></div>
+            <h2 class="text-xl font-bold text-white mb-2">Important Rules!</h2>
+            <p class="text-sm text-slate-300 mb-6"><span class="text-red-400 font-bold">1.</span> NO VPN Allowed.<br><span class="text-red-400 font-bold">2.</span> NO Self-Clicking.<br><br>Violations will result in an instant <span class="font-bold text-red-400">Account BAN</span> without payout.</p>
+            <button onclick="document.getElementById('warning-popup').classList.add('hidden')" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-all">I Agree</button>
+        </div>
+    </div>
+
     <!-- MAIN APP UI -->
     <div id="ui-main-app" class="hidden">
         <!-- HEADER -->
@@ -269,6 +279,7 @@
         const VERCEL_API_URL = 'https://linkifypro.vercel.app/api'; 
         
         const BOT_USERNAME = 'linkifypro_bot'; 
+        // UPDATED EXACTLY TO MATCH YOUR REQUESTED SHORT NAME
         const APP_SHORT_NAME = 'httpslinkifyprovercelapp'; 
 
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -280,7 +291,7 @@
         tg.setHeaderColor('#0f172a');
 
         let currentAdStep = 1; let totalAdsRequired = 1;
-        // রিমুভ করা হয়েছে সেলফ-ক্লিক ব্লক ভ্যারিয়েবল!
+        window.invalidClickReason = null; 
 
         function safeAlert(msg) { try { tg.showAlert(msg); } catch(e) { alert(msg); } }
         function copyText(text) {
@@ -355,11 +366,23 @@
         }
 
         async function verifyLinkStatus() {
-            // সেলফ-ক্লিক ব্লক মুছে দেওয়া হয়েছে
-            return true;
+            try {
+                const { data: linkData } = await dbClient.from('links').select('id, user_id').eq('short_id', window.currentShortId).single();
+                if(linkData && currentUserData) {
+                    if(linkData.user_id === currentUserData.id) { window.invalidClickReason = "self"; return; }
+                    if(currentUserData.telegram_id) {
+                        const { data: logs } = await dbClient.from('click_logs').select('id').eq('link_id', linkData.id).eq('clicker_tg_id', currentUserData.telegram_id);
+                        if(logs && logs.length > 0) window.invalidClickReason = "duplicate";
+                    }
+                }
+            } catch(e) {}
         }
 
         function setupDashboard() {
+            // Popup
+            document.getElementById('warning-popup').classList.remove('hidden');
+            
+            // Header Info
             const u = tg.initDataUnsafe?.user;
             if(u) {
                 document.getElementById('user-greeting').innerText = `Hello, ${u.first_name}!`;
@@ -369,19 +392,22 @@
                 document.getElementById('referral-link-display').innerText = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=ref_${u.id}`;
             }
 
-            document.getElementById('header-balance').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(4)}`;
-            document.getElementById('wallet-balance-page').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(4)}`;
+            // Stats
+            document.getElementById('header-balance').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(2)}`;
+            document.getElementById('wallet-balance-page').innerText = `$${parseFloat(currentUserData.balance || 0).toFixed(2)}`;
             document.getElementById('stat-today-earn').innerText = `$${parseFloat(currentUserData.today_earnings || 0).toFixed(4)}`;
             document.getElementById('stat-views').innerText = currentUserData.total_clicks || 0;
             document.getElementById('stat-cpm').innerText = `$${parseFloat(adminSettings.cpm || 0).toFixed(2)}`;
             document.getElementById('refer-commission').innerText = `${adminSettings.refer_percent || 10}%`;
             document.getElementById('min-withdraw-display').innerText = `$${parseFloat(adminSettings.min_withdraw || 5).toFixed(2)}`;
 
+            // Profile Links
             if(adminSettings.tg_channel_url) { document.getElementById('link-tg').href = adminSettings.tg_channel_url; document.getElementById('link-tg').classList.remove('hidden'); document.getElementById('link-tg').classList.add('flex'); }
             if(adminSettings.yt_channel_url) { document.getElementById('link-yt').href = adminSettings.yt_channel_url; document.getElementById('link-yt').classList.remove('hidden'); document.getElementById('link-yt').classList.add('flex'); if(adminSettings.tg_channel_url) document.getElementById('div-line-yt').classList.remove('hidden'); }
             if(adminSettings.privacy_url) { document.getElementById('link-privacy').href = adminSettings.privacy_url; document.getElementById('link-privacy').classList.remove('hidden'); document.getElementById('link-privacy').classList.add('flex'); }
             if(adminSettings.terms_url) { document.getElementById('link-terms').href = adminSettings.terms_url; document.getElementById('link-terms').classList.remove('hidden'); document.getElementById('link-terms').classList.add('flex'); }
 
+            // Withdraw Select Methods
             const methods = (adminSettings.payment_methods || "UPI").split(',');
             const sel = document.getElementById('withdraw-method');
             sel.innerHTML = '<option value="">Choose Method...</option>';
@@ -391,6 +417,7 @@
                 sel.appendChild(opt);
             });
 
+            // Listeners
             document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', function() { switchPage(this.getAttribute('data-target')); }));
             
             document.getElementById('btn-shorten').addEventListener('click', async function() {
@@ -415,6 +442,7 @@
             generateDateReport(); fetchReferralDetails();
         }
 
+        // --- WITHDRAWAL LOGIC ---
         window.submitWithdrawal = async function() {
             const method = document.getElementById('withdraw-method').value;
             const details = document.getElementById('withdraw-details').value.trim();
@@ -432,16 +460,18 @@
 
             try {
                 const newBal = bal - amount;
+                // 1. Deduct Balance
                 await dbClient.from('users').update({ balance: newBal }).eq('id', currentUserData.id);
+                // 2. Insert Request
                 await dbClient.from('withdrawals').insert([{
                     user_id: currentUserData.id,
                     username: tg.initDataUnsafe?.user?.username || tg.initDataUnsafe?.user?.first_name || 'User',
                     amount: amount, method: method, details: details, status: 'pending'
                 }]);
 
-                currentUserData.balance = newBal;
-                document.getElementById('header-balance').innerText = `$${newBal.toFixed(4)}`;
-                document.getElementById('wallet-balance-page').innerText = `$${newBal.toFixed(4)}`;
+                currentUserData.balance = newBal; // Update local
+                document.getElementById('header-balance').innerText = `$${newBal.toFixed(2)}`;
+                document.getElementById('wallet-balance-page').innerText = `$${newBal.toFixed(2)}`;
                 document.getElementById('withdraw-amount').value = '';
                 document.getElementById('withdraw-details').value = '';
                 safeAlert("Withdrawal Request Submitted Successfully!");
@@ -479,6 +509,7 @@
             } catch(e) {}
         }
 
+        // --- FETCH LINKS & REPORT ---
         async function loadLinks() {
             const list = document.getElementById('links-list');
             try {
@@ -545,6 +576,7 @@
             } catch(e) {}
         }
 
+        // AD FLOW LOGIC
         function startAdFlow() {
             document.getElementById('ui-loading').classList.add('hidden'); document.getElementById('ui-ad-viewer').classList.remove('hidden'); setupAdStep();
         }
@@ -564,6 +596,7 @@
         }
 
         function checkAdBlocker(btn, timerEl) {
+            // UPDATED MONETAG FUNCTION CALL
             if (typeof show_12057132 === 'undefined') {
                 document.getElementById('ad-blocker-warning').classList.remove('hidden');
                 document.getElementById('ad-step-title').innerText = "Action Required";
@@ -578,6 +611,7 @@
         function executeAdClick() {
             const btn = document.getElementById('btn-watch-ad'); btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading Ad...`;
             document.getElementById('ad-loader-ring').classList.remove('hidden'); document.getElementById('ad-timer-text').classList.add('hidden');
+            // UPDATED MONETAG FUNCTION CALL
             if (typeof show_12057132 === 'function') { show_12057132().then(() => { handleAdSuccess(); }).catch(() => { handleAdSuccess(); }); }
         }
 
@@ -585,57 +619,20 @@
             if (currentAdStep < totalAdsRequired) { currentAdStep++; setupAdStep(); } else { showFinalLink(); }
         }
 
-        // --- ইনস্ট্যান্ট UI আপডেট এবং API কলিং (FIXED) ---
         async function showFinalLink() {
-            document.getElementById('btn-watch-ad').classList.add('hidden'); 
-            document.getElementById('ad-timer-container').classList.add('hidden');
-            document.getElementById('ad-progress-badge').classList.add('hidden'); 
-            document.getElementById('ad-step-title').innerText = "Link Unlocked!";
+            document.getElementById('btn-watch-ad').classList.add('hidden'); document.getElementById('ad-timer-container').classList.add('hidden');
+            document.getElementById('ad-progress-badge').classList.add('hidden'); document.getElementById('ad-step-title').innerText = "Link Unlocked!";
             
-            const getLinkBtn = document.getElementById('btn-get-link'); 
-            getLinkBtn.classList.remove('hidden');
+            const getLinkBtn = document.getElementById('btn-get-link'); getLinkBtn.classList.remove('hidden');
             
-            let clickerId = tg.initDataUnsafe?.user?.id || 0;
-            
-            try { 
-                getLinkBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Adding Reward...';
-                getLinkBtn.disabled = true;
-
-                // API কল করে ব্যালেন্স যোগ করা হচ্ছে
-                const res = await fetch(`${VERCEL_API_URL}/reward`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ short_id: window.currentShortId, clicker_tg_id: clickerId }) 
-                });
-                
-                const responseData = await res.json();
-                
-                if(responseData.success) {
-                    safeAlert("✅ Reward Added Successfully!");
-                    
-                    // ফ্রন্টএন্ডে সাথে সাথে ভিউ এবং ব্যালেন্স যোগ করা
-                    const cpm = adminSettings && adminSettings.cpm ? parseFloat(adminSettings.cpm) : 2.0;
-                    const earn = cpm / 1000;
-                    
-                    if(currentUserData) {
-                        currentUserData.balance = (parseFloat(currentUserData.balance) || 0) + earn;
-                        currentUserData.today_earnings = (parseFloat(currentUserData.today_earnings) || 0) + earn;
-                        currentUserData.total_clicks = (parseInt(currentUserData.total_clicks) || 0) + 1;
-                        
-                        document.getElementById('header-balance').innerText = `$${currentUserData.balance.toFixed(4)}`;
-                        if(document.getElementById('wallet-balance-page')) document.getElementById('wallet-balance-page').innerText = `$${currentUserData.balance.toFixed(4)}`;
-                        if(document.getElementById('stat-today-earn')) document.getElementById('stat-today-earn').innerText = `$${currentUserData.today_earnings.toFixed(4)}`;
-                        if(document.getElementById('stat-views')) document.getElementById('stat-views').innerText = currentUserData.total_clicks;
-                    }
-                } else {
-                    safeAlert("❌ Backend Error: " + (responseData.error || "Unknown"));
-                }
-            } catch(e) {
-                safeAlert("❌ Network Error: " + e.message);
+            if (window.invalidClickReason === "self") {
+                safeAlert("⚠️ This is your own link! Earnings will not be added.");
+            } else if (window.invalidClickReason === "duplicate") {
+                safeAlert("⚠️ You already viewed this link! Earnings won't be duplicated.");
+            } else {
+                let clickerId = tg.initDataUnsafe?.user?.id || 0;
+                try { fetch(`${VERCEL_API_URL}/reward`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ short_id: window.currentShortId, clicker_tg_id: clickerId }) }); } catch(e){}
             }
-            
-            getLinkBtn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> GET LINK';
-            getLinkBtn.disabled = false;
 
             const { data } = await dbClient.from('links').select('original_url').eq('short_id', window.currentShortId).single();
             if(data) getLinkBtn.onclick = () => tg.openLink(data.original_url);
