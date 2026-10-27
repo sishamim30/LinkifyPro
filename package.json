@@ -1,11 +1,28 @@
 {
   "name": "linkifypro-api",
   "version": "1.0.0",
-  "description": "Backend API for LinkifyPro Telegram Mini App",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0"
+  "description": "Backend API and Telegram Mini App for LinkifyPro",
+  "private": true,
+  "type": "module",
+  "main": "api/reward.js",
+  "scripts": {
+    "build": "echo 'Build successful'",
+    "start": "node api/reward.js"
   },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.0"
+  },
+  "devDependencies": {},
   "engines": {
-    "node": ">=18.0.0"
-  }
+    "node": ">=18.x"
+  },
+  "keywords": [
+    "telegram-mini-app",
+    "link-shortener",
+    "supabase",
+    "monetag",
+    "vercel"
+  ],
+  "author": "LinkifyPro",
+  "license": "ISC"
 }
