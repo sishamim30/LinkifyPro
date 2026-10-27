@@ -278,7 +278,9 @@
         const VERCEL_API_URL = 'https://linkifypro.vercel.app/api'; 
         
         const BOT_USERNAME = 'linkifypro_bot'; 
-        const APP_SHORT_NAME = 'linkifypro'; 
+        
+        // This makes sure your links generate exactly as: https://t.me/linkifypro_bot/httpslinkifyprovercelapp
+        const APP_SHORT_NAME = 'httpslinkifyprovercelapp'; 
 
         let dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUserData = null;
