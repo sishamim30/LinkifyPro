@@ -19,9 +19,10 @@ export default async function handler(req, res) {
 
     // --- SMART BUTTON LOGIC ---
     let buttonConfig = {};
+    // Updated default URL to your live project
     const finalUrl = mini_app_url || "https://linkifypro.vercel.app/";
     
-    // Agar t.me link hai toh normal 'url' button banayega, warna 'web_app' button banayega
+    // If it is a t.me link, it makes a standard 'url' button. Otherwise, a 'web_app' button.
     if (finalUrl.includes('t.me')) {
         buttonConfig = { url: finalUrl };
     } else {
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
                 console.error(`Error for ${chat_id}:`, data.description);
             }
 
-            // Telegram rate limit se bachne ke liye delay (35ms)
+            // Small delay to prevent hitting Telegram's rate limits (approx 30 msgs/sec limit)
             await new Promise(resolve => setTimeout(resolve, 35));
 
         } catch (error) {
@@ -75,5 +76,5 @@ export default async function handler(req, res) {
         }
     }
 
-    return res.status(200).json({ sent, failed });
+    res.status(200).json({ sent, failed });
 }
