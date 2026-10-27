@@ -1,15 +1,22 @@
 export default async function handler(req, res) {
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
 
     const { referrer_id, new_user } = req.body;
-    
-    // Grabs the Bot Token securely from Vercel Environment Variables
     const BOT_TOKEN = process.env.BOT_TOKEN;
 
-    if (!BOT_TOKEN) return res.status(500).json({ error: 'BOT_TOKEN missing on Vercel' });
+    if (!BOT_TOKEN) {
+        return res.status(500).json({ error: 'BOT_TOKEN is missing on server.' });
+    }
 
     try {
-        const messageText = `🎉 <b>New Referral Joined!</b>\n\n👤 <b>${new_user.first_name || 'User'}</b> successfully registered using your link.\n\nYou will earn lifetime commission from their earnings!`;
+        // HTML characters safely handle karne ke liye
+        const userName = new_user?.first_name 
+            ? String(new_user.first_name).replace(/</g, '&lt;').replace(/>/g, '&gt;') 
+            : 'User';
+
+        const messageText = `🎉 <b>New Referral Joined!</b>\n\n👤 <b>${userName}</b> successfully registered using your link.\n\nYou will earn lifetime commission from their earnings!`;
         
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
             method: 'POST',
@@ -19,17 +26,18 @@ export default async function handler(req, res) {
                 text: messageText,
                 parse_mode: 'HTML',
                 reply_markup: {
-                    inline_keyboard: [[{ 
-                        text: "👥 View Referrals", 
-                        // UPDATED TO YOUR ACTUAL BOT & MINI APP URL
-                        url: "https://t.me/linkifypro_bot/linkifypro" 
-                    }]]
+                    inline_keyboard: [[
+                        { 
+                            text: "👥 View Referrals", 
+                            url: "https://t.me/linkifypro_bot/app" 
+                        }
+                    ]]
                 }
             })
         });
 
-        res.status(200).json({ success: true });
+        return res.status(200).json({ success: true });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
